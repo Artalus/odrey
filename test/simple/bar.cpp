@@ -1,1 +1,1 @@
-char func(char) { return 'b'; }
+char func(char) { return 'b'; }z
