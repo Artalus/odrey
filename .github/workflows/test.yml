@@ -1,0 +1,9 @@
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: conanio/gcc10:latest
+    steps:
+      - uses: actions/checkout@v1.0.0
+        name: Checkout
+      - run: ./test.sh
+        name: Run test in container
