@@ -1,4 +1,4 @@
-set(_tool "\"${CMAKE_SOURCE_DIR}/../odr.py\" -Werror --")
+set(_tool "\"${CMAKE_SOURCE_DIR}/../odr.py\" --")
 foreach(lang C CXX)
    foreach(rule LINK_EXECUTABLE CREATE_SHARED_LIBRARY CREATE_SHARED_MODULE)
        set(CMAKE_${lang}_${rule}
