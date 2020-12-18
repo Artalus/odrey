@@ -1,0 +1,12 @@
+name: Test ODR
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: conanio/gcc10:latest
+    steps:
+      - uses: actions/checkout@v1.0.0
+        name: Checkout
+      # TODO: research why sudo is required, possibly conan container broken?
+      - run: sudo ./test.sh
+        name: Run test in container
