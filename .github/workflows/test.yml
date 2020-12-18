@@ -1,4 +1,4 @@
-name: Lint Awesome List
+name: Test ODR
 on: [push, pull_request]
 jobs:
   test:
