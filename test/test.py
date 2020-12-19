@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 import re
-import subprocess as sp
+import subprocess
+from subprocess import check_call
 
 class Build:
     def __init__(self, target):
         print(' : running...')
         print('^'*80)
-        p = sp.Popen(
+        p = subprocess.Popen(
             ['cmake', '--build', 'build', '--target', target],
-            stdout=sp.PIPE, stderr=sp.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
         self.out, err = tuple(s.decode() for s in p.communicate())
         p.wait()
@@ -29,6 +30,13 @@ def source(f):
 
 def test_simple():
     Build('simple-odr').expect(
+        function('func'),
+        source('foo.cpp'),
+        source('bar.cpp'),
+    )
+
+def test_simple_inline():
+    Build('simple-inline-main').expect(
         function('func'),
         source('foo.cpp'),
         source('bar.cpp'),
