@@ -1,7 +1,7 @@
 name: Test ODR
 on: [push, pull_request]
 jobs:
-  test:
+  test-linux:
     runs-on: ubuntu-latest
     container: conanio/gcc10:latest
     steps:
@@ -10,3 +10,23 @@ jobs:
       # TODO: research why sudo is required, possibly conan container broken?
       - run: sudo ./test.sh
         name: Run test in container
+
+
+  test-msvc:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Run test
+        shell: cmd
+        env:
+          CC: cl.exe
+          CXX: cl.exe
+        # TODO: neither ilammy/msvc-dev-cmd nor microsoft/setup-msbuild seems to be working, failing with
+        #   Could not find compiler set in environment variable CC: cl.exe
+        # TODO: grep
+        run: |
+          cd test
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
+          cmake -S test -B build -GNinja
+          cmake --build build
