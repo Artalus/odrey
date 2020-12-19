@@ -39,11 +39,11 @@ By dumping symbols from compiled `.o`s, archived `.a`s and linked `.so` and ensu
 - currently it is a proof of concept, not guaranteed to work for all cases
 - doesn't catch everything, very likely to catch more than needed
 - potentially slow on large binaries
-- works only on Linux (for the time being)
 
 ## - Whatever! I am convinced! Lets get started!
-1. `pacman`, `yum`, `apt` or even `make` install yourself Python 3.6+ and `readelf` (usually in `binutils` package)
-1. get `odr.py` somewhere you can execute it
+1. - `if linux`: `pacman`, `yum`, `apt` or even `make` install yourself Python 3.6+, `readelf` and `c++filt` (usually in `binutils` package)
+   - `if windows`: get `dumpbin.exe` from Visual Studio accessible in `PATH` envvar (e.g. via `vcvarsall.bat` or VS Command Prompt)
+1. get `odr.py` someplace where you can execute it
 1. run `odr.py object.o more/object.o and/libstatic.a and/even/libdynamic.so`
 1. meditate on the output and see if it uncovers something nasty
 
