@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 import re
-import subprocess
-from subprocess import check_call
+import subprocess as sp
 
 class Build:
     def __init__(self, target):
         print(' : running...')
         print('^'*80)
-        p = subprocess.Popen(
+        p = sp.Popen(
             ['cmake', '--build', 'build', '--target', target],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            stdout=sp.PIPE, stderr=sp.PIPE,
         )
         self.out, err = tuple(s.decode() for s in p.communicate())
         p.wait()
