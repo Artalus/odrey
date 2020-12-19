@@ -28,5 +28,5 @@ jobs:
         run: |
           cd test
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
-          cmake -S test -B build -GNinja
+          cmake -S . -B build -GNinja
           cmake --build build
