@@ -5,13 +5,16 @@ jobs:
     runs-on: ubuntu-latest
     container: conanio/gcc10:latest
     steps:
-      - uses: actions/checkout@v1.0.0
-        name: Checkout
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Pip install
+        run: pip install -r test/requirements.txt
       # TODO: research why sudo is required, possibly conan container broken?
-      - run: sudo ./test.sh
-        name: Run test in container
-
-
+      - name: Run test in container
+        run: |
+          cd test
+          sudo python -m pytest -sv test.py
+          
   test-msvc:
     runs-on: windows-latest
     steps:
