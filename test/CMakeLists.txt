@@ -4,3 +4,4 @@ project(odr)
 include(../odr.cmake)
 
 add_subdirectory(simple)
+add_subdirectory(application_and_shared)

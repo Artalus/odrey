@@ -17,19 +17,53 @@ class Build:
         if err:
             print('--- BUILD ERR:')
             print(err)
+        if p.returncode:
+            raise RuntimeError(f'Build failed with code {p.returncode}')
 
     def expect(self, *args):
         regex = '\n'.join(args)
         assert re.search(regex, self.out) is not None
 
-def function(f):
+    def expect_not(self, *args):
+        regex = '\n'.join(args)
+        assert re.search(regex, self.out) is None
+
+def symbol(f):
     return r'multiple definitions of '+f+'.*'
 def source(f):
     return r'\s+in file .*'+f+'.*'
 
 def test_simple():
     Build('simple-odr').expect(
-        function('func'),
+        symbol('func'),
         source('foo.cpp'),
         source('bar.cpp'),
+    )
+
+def test_application():
+    b = Build('application_and_shared')
+    b.expect(
+        symbol('colliding_func'),
+        source('app.cpp'),
+        source('application_and_shared-lib'),
+    )
+    b.expect(
+        symbol('colliding_variable'),
+        source('app.cpp'),
+        source('application_and_shared-lib'),
+    )
+    b.expect(
+        symbol('colliding_const'),
+        source('app.cpp'),
+        source('application_and_shared-lib'),
+    )
+    b.expect(
+        symbol('colliding_inline'),
+        source('app.cpp'),
+        source('application_and_shared-lib'),
+    )
+    b.expect_not(
+        symbol('local_.+_[12]'),
+        source('app.cpp'),
+        source('application_and_shared-lib'),
     )
