@@ -6,9 +6,12 @@
 A Python script to check your C++ compiled stuff for [One Definition Rule](https://en.cppreference.com/w/cpp/language/definition) violations.
 
 ## - Why?
-Because debugging ODRV is cumbersome and it's better to catch it at build-time rather than at run-time with [sanitizers](https://github.com/google/sanitizers/wiki/AddressSanitizerOneDefinitionRuleViolation).
+Because debugging ODRV is cumbersome, not always trivial and it's better to catch it at build-time rather than at run-time with [sanitizers](https://github.com/google/sanitizers/wiki/AddressSanitizerOneDefinitionRuleViolation).
 <br>Sanitizers are awesome, though. Use sanitizers.
 <br><sub><sup>at least hand sanitizers</sup></sub>
+
+It should be noted, that this task could be better done within compiler or linker themselves, where code model is available for more scrutinized analysis.
+Ideally, we would like to have a compiler option, something like `-Wodr` and have violations reported before linking procedure. No known compiler does this.
 
 ## - How?
 ```c++
@@ -30,11 +33,11 @@ multiple definitions of func(char):
 ```
 
 ## - But, technically how?
-By dumping symbols from compiled `.o`s, archived `.a`s and linked `.so` and ensuring that if they are called the same - they look the same.
+By dumping symbols from compiled `.o`s, archived `.a`s and linked `.so` and ensuring that there are no symbols having same signature and different implementation.
 
 ## - What's the catch?
-- proof of concept
-- doesn't catch (kek) everything, is expected to catch more than needed
+- currently it is a proof of concept, not guaranteed to work for all cases
+- doesn't catch everything, very likely to catch more than needed
 - potentially slow on large binaries
 - works only on Linux (for the time being)
 
