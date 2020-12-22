@@ -9,7 +9,7 @@ def flush():
 def pytest_sessionstart(session):
     print(' >>> RUNNING CMAKE CONFIGURE <<<')
     flush()
-    check_call(['cmake', '-S', '.', '-B', 'build', '-GNinja'])
+    check_call(['cmake', '-S', 'test', '-B', 'build', '-GNinja'])
     flush()
     print(' >>> RUNNING CMAKE CLEAN <<<')
     flush()

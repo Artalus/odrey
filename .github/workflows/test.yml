@@ -11,9 +11,7 @@ jobs:
       - name: Pip install
         run: pip install -r test/requirements.txt
       - name: Run  tests
-        run: |
-          cd test
-          python -m pytest -sv test.py
+        run: python -m pytest
 
   test-msvc:
     runs-on: windows-latest
@@ -30,6 +28,5 @@ jobs:
         # TODO: neither ilammy/msvc-dev-cmd nor microsoft/setup-msbuild seems to be working, failing with
         #   Could not find compiler set in environment variable CC: cl.exe
         run: |
-          cd test
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
-          python -m pytest -sv test.py
+          python -m pytest
