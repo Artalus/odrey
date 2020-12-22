@@ -2,19 +2,19 @@ name: Test ODR
 on: [push, pull_request]
 jobs:
   test-linux:
-    runs-on: ubuntu-latest
-    container: conanio/gcc10:latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v1
+      - name: Apt install
+        run: sudo apt-get install ninja-build
       - name: Pip install
         run: pip install -r test/requirements.txt
-      # TODO: research why sudo is required, possibly conan container broken?
-      - name: Run test in container
+      - name: Run  tests
         run: |
           cd test
-          sudo python -m pytest -sv test.py
-          
+          python -m pytest -sv test.py
+
   test-msvc:
     runs-on: windows-latest
     steps:
