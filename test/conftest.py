@@ -1,4 +1,5 @@
 import sys
+import os
 from subprocess import check_call
 
 def flush():
@@ -9,7 +10,10 @@ def flush():
 def pytest_sessionstart(session):
     print(' >>> RUNNING CMAKE CONFIGURE <<<')
     flush()
-    check_call(['cmake', '-S', '.', '-B', 'build', '-GNinja'])
+    check_call(['cmake',
+                '-S', os.path.dirname(__file__),
+                '-B', os.path.join(os.path.dirname(__file__), 'build'),
+                '-GNinja'])
     flush()
     print(' >>> RUNNING CMAKE CLEAN <<<')
     flush()
