@@ -2,7 +2,7 @@ name: Test ODR
 on: [push, pull_request]
 jobs:
   test-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container: conanio/gcc10:latest
     steps:
       - name: Checkout
@@ -14,7 +14,7 @@ jobs:
         run: |
           cd test
           sudo python -m pytest -sv test.py
-          
+
   test-msvc:
     runs-on: windows-latest
     steps:
