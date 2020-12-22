@@ -17,7 +17,9 @@ def pytest_sessionstart(session):
     flush()
     print(' >>> RUNNING CMAKE CLEAN <<<')
     flush()
-    check_call(['cmake', '--build', 'build', '--target', 'clean'])
+    check_call(['cmake',
+                '--build', os.path.join(os.path.dirname(__file__), 'build'),
+                '--target', 'clean'])
     flush()
     print(' >>> DONE <<<')
     flush()
