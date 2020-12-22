@@ -1,6 +1,10 @@
 add_library(application_and_shared-lib SHARED
 lib.cpp
 )
+generate_export_header(application_and_shared-lib)
+target_compile_definitions(application_and_shared-lib PRIVATE application_and_shared_lib_EXPORTS)
+target_include_directories(application_and_shared-lib PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
 add_executable(application_and_shared
 app.cpp
 main.cpp
