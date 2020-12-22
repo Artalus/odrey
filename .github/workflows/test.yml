@@ -7,7 +7,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
       - name: Apt install
-        run: apt install ninja-build
+        run: sudo apt-get install ninja-build
       - name: Pip install
         run: pip install -r test/requirements.txt
       - name: Run  tests
