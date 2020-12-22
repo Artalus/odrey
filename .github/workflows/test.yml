@@ -6,6 +6,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
+      - name: Select Python 3
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
       - name: Pip install
         run: pip install -r test/requirements.txt
       # TODO: research why sudo is required, possibly conan container broken?
