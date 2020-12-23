@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import re
 import subprocess as sp
 
@@ -40,24 +41,30 @@ def test_simple():
         source('bar.cpp'),
     )
 
-def test_application():
+def test_application_with_shared():
     b = Build('application_and_shared')
-    b.expect(
+    # TODO: should be detectable, but requires something other than
+    # dumpbin /disasm
+    if sys.platform.startswith('linux'):
+        ex = b.expect
+    else:
+        ex = b.expect_not
+    ex(
         symbol('colliding_func'),
         source('app.cpp'),
         source('application_and_shared-lib'),
     )
-    b.expect(
+    ex(
         symbol('colliding_variable'),
         source('app.cpp'),
         source('application_and_shared-lib'),
     )
-    b.expect(
+    ex(
         symbol('colliding_const'),
         source('app.cpp'),
         source('application_and_shared-lib'),
     )
-    b.expect(
+    ex(
         symbol('colliding_inline'),
         source('app.cpp'),
         source('application_and_shared-lib'),
