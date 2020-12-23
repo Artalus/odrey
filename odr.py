@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import re
 import subprocess
 
-from collections import namedtuple
 from sys import platform
+from collections import namedtuple
 from typing import *
 
 
@@ -18,13 +19,26 @@ def parse_args() -> argparse.Namespace:
 #                            num      value   size    type    bind    vis     ndx     name
 #                            1        2       3       4       5       6       7       8
 SYMBOL_ELF_RE = re.compile(r'^\s*(\d+):\s+(\d+)\s+(\d+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.+)$')
-
+ASM_FUNC_HEADER_RE = re.compile(r'^\?(.+@@.+:)$')
+#                            offset       instructions             cmd
+#                            1            2                        3
+ASM_LINE_RE = re.compile(r'^\s*([\dA-E]+):((?: [\dA-E][\dA-E])+)\s+(.+)$')
 
 SymbolInFile = namedtuple('SymbolInFile', ['filename', 'symbol'])
 
 
 class Symbol:
+    def __init__(self, name: str):
+        self.name = name
+    def __eq__(self, other) -> bool:
+        raise NotImplementedError()
+    def data(self) -> str:
+        raise NotImplementedError()
+
+
+class ReadelfSymbol(Symbol):
     def __init__(self, num, value, size, type, bind, vis, ndx, name):
+        super().__init__(name)
         self.num = num
         self.value = value
         self.size = size
@@ -32,7 +46,6 @@ class Symbol:
         self.bind = bind
         self.vis = vis
         self.ndx = ndx
-        self.name = name
 
     def data(self) -> str:
         return f'size={self.size}'
@@ -42,6 +55,25 @@ class Symbol:
 
     def __repr__(self):
         return f'{self.name}:: {self.size}'
+
+
+class DumpbinSymbol(Symbol):
+    def __init__(self, name: str, asm_lines: List[str]):
+        super().__init__(name)
+        self.name = name
+        self.asm = asm_lines
+
+    def data(self) -> str:
+        m = hashlib.sha1()
+        m.update(self.asm.__repr__().encode())
+        h = m.hexdigest()
+        return f'asm hash={h}'
+
+    def __eq__(self, other):
+        return self.name == other.name and self.asm == other.asm
+
+    def __repr__(self):
+        return f'{self.name}:: {self.asm}'
 
 
 class FileData:
@@ -75,24 +107,52 @@ def main() -> None:
 
 def read_symbols(filename: str) -> FileData:
     if platform.startswith("linux"):
-        return read_symbols_elf(filename)
+        return read_symbols_readelf(filename)
     elif platform == "win32":
-        pass
+        return read_symbols_dumpbin(filename)
     elif platform == "darwin": # Mac
         pass
     raise RuntimeError(f'Unsupported platform: {platform}')
 
 
-def read_symbols_elf(filename: str) -> FileData:
+def read_symbols_readelf(filename: str) -> FileData:
     elf = subprocess.check_output(f'readelf -Ws {filename} | c++filt', shell=True).decode()
     elf = elf.splitlines()
     symbols = []
     for line in elf:
         m = re.match(SYMBOL_ELF_RE, line)
         if m:
-            symbols.append(Symbol(*(m.groups())))
+            symbols.append(ReadelfSymbol(*(m.groups())))
     functions = [s for s in symbols if s.type == 'FUNC']
     return FileData(filename, functions)
+
+def read_symbols_dumpbin(filename: str) -> FileData:
+    db = subprocess.check_output(['dumpbin.exe', '/disasm:bytes', filename]).decode()
+    db = db.splitlines()
+    symbols = []
+    asm_lines = []
+    function_name = None
+    for line in db:
+        # print(f'>>> {line}')
+        m = re.match(ASM_FUNC_HEADER_RE, line)
+        if m:
+            if function_name:
+                # print(f'>>> asm ended!')
+                symbols.append(DumpbinSymbol(function_name, asm_lines))
+                asm_lines = []
+            function_name = m.group(1)
+            # print(f'>>> func: {function_name}')
+            continue
+        m = re.match(ASM_LINE_RE, line)
+        if m:
+            asm = m.group(2).strip()
+            # print(f'>>> asm: {asm}')
+            asm_lines.append(asm)
+    if function_name:
+        assert asm_lines
+        # print(f'>>> asm ended!')
+        symbols.append(DumpbinSymbol(function_name, asm_lines))
+    return FileData(filename, symbols)
 
 
 def find_collisions(filesdata: List[FileData]) -> List[Collision]:
