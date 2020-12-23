@@ -34,12 +34,14 @@ def symbol(f):
 def source(f):
     return r'\s+in file .*'+f+'.*'
 
+
 def test_simple():
     Build('simple-odr').expect(
         symbol('func'),
         source('foo.cpp'),
         source('bar.cpp'),
     )
+
 
 def test_application_with_shared():
     b = Build('application_and_shared')
@@ -73,4 +75,43 @@ def test_application_with_shared():
         symbol('local_.+_[12]'),
         source('app.cpp'),
         source('application_and_shared-lib'),
+    )
+
+
+def test_application_with_static():
+    b = Build('application_and_static')
+
+    # GCC detects it itself
+    # /usr/bin/ld: ... multiple definition of `colliding_variable'
+    if sys.platform.startswith('win32'):
+        # TODO: variables should be detectable, but requires something other than
+        # dumpbin /disasm
+        ex = b.expect_not
+        ex(
+            symbol('colliding_variable'),
+            source('app.cpp'),
+            source('application_and_static-lib'),
+        )
+        ex(
+            symbol('colliding_const'),
+            source('app.cpp'),
+            source('application_and_static-lib'),
+        )
+
+    b.expect(
+        symbol('colliding_inline'),
+        source('app.cpp'),
+        source('application_and_static-lib'),
+    )
+
+    # TODO: should not be detected, but requires something other than
+    # dumpbin /disasm
+    if sys.platform.startswith('linux'):
+        ex_not = b.expect_not
+    else:
+        ex_not = b.expect
+    ex_not(
+        symbol('local_.+_[12]'),
+        source('app.cpp'),
+        source('application_and_static-lib'),
     )
