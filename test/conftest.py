@@ -1,3 +1,4 @@
+import os
 import sys
 from subprocess import check_call
 import pytest
@@ -10,7 +11,13 @@ def flush():
 def clean_cmake(request):
     print(' >>> RUNNING CMAKE CONFIGURE <<<')
     flush()
-    check_call(['cmake', '-S', 'test', '-B', 'build', '-GNinja'])
+    cwd = os.getcwd()
+    check_call(['cmake', '-GNinja',
+        '-S', 'test',
+        '-B', 'build',
+        f'-DODREY_SCRIPT_PATH={cwd}/odr.py',
+        '-DODREY_WRITE_JSON=ON',
+        ])
     flush()
     print(' >>> RUNNING CMAKE CLEAN <<<')
     flush()

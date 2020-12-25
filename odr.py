@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import hashlib
+import json
+import os
 import re
 import subprocess
+import time
 
 from sys import platform
 from collections import namedtuple
@@ -13,7 +16,11 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument('inputfiles', nargs='+')
     p.add_argument('-Werror', action='store_true')
-    return p.parse_args()
+    p.add_argument('--output-json')
+    p.add_argument('--output-root', default='odrey')
+    p.add_argument('--target')
+    a = p.parse_args()
+    return a
 
 
 #                                num      value        size    type    bind    vis     ndx     name
@@ -102,6 +109,9 @@ def main() -> None:
         print('ODR violations found:')
         for c in collisions:
             print(collision_to_str(c))
+        if args.output_json:
+            jfile = compose_output_filename(args.output_root, args.output_json)
+            write_collisions_to_json(collisions, jfile, args.target)
         if args.Werror:
             exit(1)
 
@@ -195,6 +205,33 @@ def collision_to_str(c: Collision) -> str:
     size_strings = [f'  in file {f}: {s.data()}' for f,s in c.entries]
     ss = '\n'.join(size_strings)
     return f'multiple definitions of {c.funcname}:\n{ss}'
+
+
+def compose_output_filename(odrey_root: str, filename: str) -> str:
+    if platform == 'win32' and len(filename)>3 and filename[1]==':' and filename[2] in ('/', '\\'):
+        filename = filename[3:]
+    elif filename.startswith('/'):
+        filename = filename[1:]
+    return os.path.join(odrey_root, filename)
+
+
+def write_collisions_to_json(collisions: Sequence[Collision], json_filename: str, target: str) -> None:
+    dirs, _ = os.path.split(json_filename)
+    os.makedirs(dirs, exist_ok=True)
+    collisions_jsonlist = []
+    for c in collisions:
+        funcname = c.funcname
+        entries_jsonlist = []
+        out = "ODR: multiple definitions of %s:\n" % funcname
+        for filename, symbol in c.entries:
+            e = dict(filename=filename, data=symbol.data())
+            entries_jsonlist.append(e)
+        j = dict(name=funcname, entries=entries_jsonlist)
+        collisions_jsonlist.append(j)
+    out_json = dict(target=target, collisions=collisions_jsonlist, timestamp_seconds=int(time.time()))
+    with open(json_filename, 'w') as f:
+        json.dump(out_json, f, indent=4)
+
 
 
 if __name__ == "__main__":

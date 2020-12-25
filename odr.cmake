@@ -1,10 +1,28 @@
-# TODO: provide way to setup flags
-set(_tool "\"${CMAKE_SOURCE_DIR}/../odr.py\" --")
-if(MSVC)
-    # TODO: provide way to setup path to python
-    # without explicitly specifying python, windows can turn it into noop
-    set(_tool "python ${_tool}")
+if(NOT ODREY_SCRIPT_PATH)
+    set(ODREY_SCRIPT_PATH "${CMAKE_BINARY_DIR}/odr.py")
 endif()
+if (NOT EXISTS ${ODREY_SCRIPT_PATH})
+    message(FATAL_ERROR "Could not found ${ODREY_SCRIPT_PATH}"
+    "To use odr.cmake module, put `odr.py` script to binary dir, "
+    "or specify its path via ODREY_SCRIPT_PATH cmake variable")
+endif()
+
+
+
+set(_tool "\"${ODREY_SCRIPT_PATH}\"")
+if(NOT ODREY_PYTHON_EXE AND WIN32)
+    # without explicitly specifying python, windows can turn the call into noop
+    set(ODREY_PYTHON_EXE "python")
+endif()
+if (ODREY_PYTHON_EXE)
+    string(PREPEND _tool "${ODREY_PYTHON_EXE} ")
+endif()
+if (ODREY_WRITE_JSON)
+    string(APPEND _tool " --output-json <TARGET>.json --target <TARGET>")
+endif()
+string(APPEND _tool " --")
+
+
 
 set(_rules LINK_EXECUTABLE CREATE_SHARED_LIBRARY CREATE_SHARED_MODULE)
 if(MSVC)
