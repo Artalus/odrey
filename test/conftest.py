@@ -1,15 +1,16 @@
 import sys
 from subprocess import check_call
+import pytest
 
 def flush():
     sys.stdout.flush()
     sys.stderr.flush()
 
-
-def pytest_sessionstart(session):
+@pytest.fixture
+def clean_cmake(request):
     print(' >>> RUNNING CMAKE CONFIGURE <<<')
     flush()
-    check_call(['cmake', '-S', '.', '-B', 'build', '-GNinja'])
+    check_call(['cmake', '-S', 'test', '-B', 'build', '-GNinja'])
     flush()
     print(' >>> RUNNING CMAKE CLEAN <<<')
     flush()
@@ -17,7 +18,6 @@ def pytest_sessionstart(session):
     flush()
     print(' >>> DONE <<<')
     flush()
-    # request.addfinalizer(configure_cmake)
 
 def pytest_runtest_teardown(item):
     print('\n\n'+('v'*80), end='')

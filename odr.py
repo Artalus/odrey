@@ -16,13 +16,14 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-#                            num      value   size    type    bind    vis     ndx     name
-#                            1        2       3       4       5       6       7       8
-SYMBOL_ELF_RE = re.compile(r'^\s*(\d+):\s+(\d+)\s+(\d+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.+)$')
+#                                num      value        size    type    bind    vis     ndx     name
+#                                1        2            3       4       5       6       7       8
+SYMBOL_ELF_RE = re.compile(r'^\s*(\d+):\s+([\da-f]+)\s+(\d+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.+)$')
 ASM_FUNC_HEADER_RE = re.compile(r'^\?(.+@@.+:)$')
 #                            offset       instructions             cmd
 #                            1            2                        3
 ASM_LINE_RE = re.compile(r'^\s*([\dA-E]+):((?: [\dA-E][\dA-E])+)\s+(.+)$')
+
 
 SymbolInFile = namedtuple('SymbolInFile', ['filename', 'symbol'])
 
@@ -94,8 +95,8 @@ class Collision:
 
 def main() -> None:
     args = parse_args()
-    symbols = [read_symbols(f) for f in args.inputfiles]
-    # print(symbols)
+    input_files = filter_input(args.inputfiles)
+    symbols = [read_symbols(f) for f in input_files]
     collisions = find_collisions(symbols)
     if collisions:
         print('ODR violations found:')
@@ -103,6 +104,11 @@ def main() -> None:
             print(collision_to_str(c))
         if args.Werror:
             exit(1)
+
+
+def filter_input(inp: List[str]) -> List[str]:
+    # NOTE: will filter out any -lm -lpthread and other system libs
+    return [x for x in inp if not x.startswith('-')]
 
 
 def read_symbols(filename: str) -> FileData:
@@ -116,15 +122,30 @@ def read_symbols(filename: str) -> FileData:
 
 
 def read_symbols_readelf(filename: str) -> FileData:
-    elf = subprocess.check_output(f'readelf -Ws {filename} | c++filt', shell=True).decode()
-    elf = elf.splitlines()
+    elf_full = subprocess.check_output(f'readelf -Ws {filename} | c++filt', shell=True).decode()
+    elf = elf_full.splitlines()
     symbols = []
     for line in elf:
         m = re.match(SYMBOL_ELF_RE, line)
         if m:
             symbols.append(ReadelfSymbol(*(m.groups())))
-    functions = [s for s in symbols if s.type == 'FUNC']
-    return FileData(filename, functions)
+    symbols = [x for x in symbols if is_interesting_elf_symbol(x)]
+    if not symbols:
+        print(f'ODR: ERROR: cannot parse any symbols from `readelf -Ws {filename}` call.')
+        print(f'     output was:\n{elf_full}')
+        raise RuntimeError('No symbols acquired from readelf')
+    return FileData(filename, symbols)
+
+
+def is_interesting_elf_symbol(s: ReadelfSymbol) -> bool:
+    if s.type not in ['FUNC', 'OBJECT']:
+        return False
+    # static functions, anonymous namespace, etc. - everything that can safely
+    # differ, because it is not being exported
+    if s.bind == 'LOCAL':
+        return False
+    return True
+
 
 def read_symbols_dumpbin(filename: str) -> FileData:
     db = subprocess.check_output(['dumpbin.exe', '/disasm:bytes', filename]).decode()
