@@ -23,9 +23,9 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-#                                num      value        size    type    bind    vis     ndx     name
-#                                1        2            3       4       5       6       7       8
-SYMBOL_ELF_RE = re.compile(r'^\s*(\d+):\s+([\da-f]+)\s+(\d+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.+)$')
+#                                num      value        size                    type    bind    vis     ndx     name
+#                                1        2            3                       4       5       6       7       8
+SYMBOL_ELF_RE = re.compile(r'^\s*(\d+):\s+([\da-f]+)\s+((?:0x)?(?:[\da-f]+))\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.+)$')
 ASM_FUNC_HEADER_RE = re.compile(r'^\?(.+@@.+:)$')
 #                            offset       instructions             cmd
 #                            1            2                        3
