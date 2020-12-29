@@ -17,6 +17,7 @@ jobs:
         with:
           report_paths: test-results.xml
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          check_name: Test Report (linux)
 
   test-msvc:
     runs-on: windows-latest
@@ -40,3 +41,4 @@ jobs:
         with:
           report_paths: test-results.xml
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          check_name: Test Report (windows)
