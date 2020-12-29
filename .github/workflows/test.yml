@@ -12,6 +12,14 @@ jobs:
         run: pip install -r test/requirements.txt
       - name: Run  tests
         run: python -m pytest
+      - name: Aggregate junit
+        run: ./odr_junit.py build/ odr_junit.xml
+      - name: Publish Unit Test Results
+        uses: mikepenz/action-junit-report@v1
+        with:
+          report_paths: test-odr_junit.xml
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          check_name: odr_junit results
 
   test-msvc:
     runs-on: windows-latest

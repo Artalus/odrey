@@ -16,6 +16,7 @@ def clean_cmake(request):
         '-S', 'test',
         '-B', 'build',
         f'-DODREY_SCRIPT_PATH={cwd}/odr.py',
+        '-DODREY_ODREY_WRITE_JSON=ON',
         '-DODREY_WRITE_JSON=ON',
         ])
     flush()
