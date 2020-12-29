@@ -19,8 +19,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('--output-json')
     p.add_argument('--output-root', default='odrey')
     p.add_argument('--target')
-    a = p.parse_args()
-    return a
+    p.add_argument('--silent', action='store_true')
+    return p.parse_args()
 
 
 #                                num      value        size    type    bind    vis     ndx     name
@@ -106,9 +106,10 @@ def main() -> None:
     symbols = [read_symbols(f) for f in input_files]
     collisions = find_collisions(symbols)
     if collisions:
-        print('ODR violations found:')
-        for c in collisions:
-            print(collision_to_str(c))
+        print('ODR violations found' + ('' if args.silent else ':'))
+        if not args.silent:
+            for c in collisions:
+                print(collision_to_str(c))
         if args.output_json:
             jfile = compose_output_filename(args.output_root, args.output_json)
             write_collisions_to_json(collisions, jfile, args.target)
