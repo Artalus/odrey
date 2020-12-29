@@ -142,9 +142,8 @@ def read_symbols_readelf(filename: str) -> FileData:
             symbols.append(ReadelfSymbol(*(m.groups())))
     symbols = [x for x in symbols if is_interesting_elf_symbol(x)]
     if not symbols:
-        print(f'ODR: ERROR: cannot parse any symbols from `readelf -Ws {filename}` call.')
+        print(f'ODR: WARNING: cannot parse any symbols from `readelf -Ws {filename}` call.')
         print(f'     output was:\n{elf_full}')
-        raise RuntimeError('No symbols acquired from readelf')
     return FileData(filename, symbols)
 
 
