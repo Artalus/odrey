@@ -93,8 +93,9 @@ class FileData:
 
 
 class Collision:
-    def __init__(self, funcname: str, entries: Sequence[SymbolInFile]):
+    def __init__(self, funcname: str, demangled: Optional[str], entries: Sequence[SymbolInFile]):
         self.funcname = funcname
+        self.demangled = demangled
         self.entries = entries
     def __repr__(self):
         return f'{self.funcname}:: {self.entries}'
@@ -194,18 +195,23 @@ def find_collisions(filesdata: List[FileData]) -> List[Collision]:
                 known_definitions[s.name] = []
             known_definitions[s.name].append(SymbolInFile(fd.filename, s))
     collisions = []
-    #TODO: should demangle symbols here
     for funcname, filesymbols in known_definitions.items():
         uniq = filesymbols[0].symbol
         if any(fs.symbol != uniq for fs in filesymbols):
-            collisions.append(Collision(funcname, filesymbols))
+            #TODO: something else than subprocess
+            if platform.startswith('linux'):
+                demangled = subprocess.check_output(['c++filt', funcname]).decode().strip()
+            else:
+                demangled = None
+            collisions.append(Collision(funcname, demangled, filesymbols))
     return collisions
 
 
 def collision_to_str(c: Collision) -> str:
     size_strings = [f'  in file {f}: {s.data()}' for f,s in c.entries]
+    dmg = f'(aka {c.demangled})\n' if c.demangled else ''
     ss = '\n'.join(size_strings)
-    return f'multiple definitions of {c.funcname}:\n{ss}'
+    return f'multiple definitions of {c.funcname}:\n{dmg}{ss}'
 
 
 def compose_output_filename(odrey_root: str, filename: str) -> str:
