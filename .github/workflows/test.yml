@@ -17,7 +17,7 @@ jobs:
       - name: Publish Unit Test Results
         uses: mikepenz/action-junit-report@v1
         with:
-          report_paths: test-odr_junit.xml
+          report_paths: odr_junit.xml
           github_token: ${{ secrets.GITHUB_TOKEN }}
           check_name: odr_junit results
 
