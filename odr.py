@@ -133,7 +133,7 @@ def read_symbols(filename: str) -> FileData:
 
 
 def read_symbols_readelf(filename: str) -> FileData:
-    elf_full = subprocess.check_output(f'readelf -Ws {filename} | c++filt', shell=True).decode()
+    elf_full = subprocess.check_output(f'readelf -Ws {filename}', shell=True).decode()
     elf = elf_full.splitlines()
     symbols = []
     for line in elf:
@@ -194,6 +194,7 @@ def find_collisions(filesdata: List[FileData]) -> List[Collision]:
                 known_definitions[s.name] = []
             known_definitions[s.name].append(SymbolInFile(fd.filename, s))
     collisions = []
+    #TODO: should demangle symbols here
     for funcname, filesymbols in known_definitions.items():
         uniq = filesymbols[0].symbol
         if any(fs.symbol != uniq for fs in filesymbols):
