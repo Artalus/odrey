@@ -1,3 +1,10 @@
+# Variables that can provide input for this module:
+#   ODREY_SCRIPT_PATH - path to odr.py to execute
+#   ODREY_PYTHON_EXE - path to python to be used
+#   ODREY_WRITE_JSON - generate json files with output
+#   ODREY_OPTIONS - pass additional options to odr.py
+
+
 if(NOT ODREY_SCRIPT_PATH)
     set(ODREY_SCRIPT_PATH "${CMAKE_BINARY_DIR}/odr.py")
 endif()
@@ -20,6 +27,10 @@ endif()
 if (ODREY_WRITE_JSON)
     string(APPEND _tool " --output-json <TARGET>.json --target <TARGET>")
 endif()
+if(ODREY_OPTIONS)
+    string(APPEND _tool " ${ODREY_OPTIONS}")
+endif()
+
 string(APPEND _tool " --")
 
 
