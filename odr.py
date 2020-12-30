@@ -13,12 +13,37 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument('inputfiles', nargs='+')
     p.add_argument('-Werror', action='store_true')
-    return p.parse_args()
+    p.add_argument('--ignore', action='append', default=[],
+        nargs=2, metavar=('symbol', 'file'),
+        help='specify pair of <symbol> <file> regexes to ignore when calculating collisions,'
+        'example:\n' r'  --ignore boost::.* /usr/lib(32)?/.*\.so')
+    a = p.parse_args()
+    a.ignore = [IgnorePair(p, *i) for i in a.ignore]
+    return a
 
 
-#                                num      value        size    type    bind    vis     ndx     name
-#                                1        2            3       4       5       6       7       8
-SYMBOL_ELF_RE = re.compile(r'^\s*(\d+):\s+([\da-f]+)\s+(\d+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.+)$')
+class IgnorePair:
+    symbol: re.Pattern
+    file: re.Pattern
+    def __init__(self, parser: argparse.ArgumentParser, symbol_re: str, file_re: str):
+        try:
+            self.symbol = re.compile(symbol_re)
+        except re.error as e:
+            parser.error(f'Bad "symbol" ignore regex: {e}')
+        try:
+            self.file = re.compile(file_re)
+        except re.error as e:
+            parser.error(f'Bad "file" ignore regex: {e}')
+
+    def matches(self, symbol: str, file: str) -> bool:
+        return self.symbol.search(symbol) and self.symbol.search(file)
+
+
+SYMBOL_ELF_RE = re.compile(
+#         num      value        size    type    bind    vis     ndx     name
+#         1        2            3       4       5       6       7       8
+    r'^\s*(\d+):\s+([\da-f]+)\s+(\d+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.+)$'
+    )
 ASM_FUNC_HEADER_RE = re.compile(r'^\?(.+@@.+:)$')
 #                            offset       instructions             cmd
 #                            1            2                        3
@@ -31,19 +56,19 @@ SymbolInFile = namedtuple('SymbolInFile', ['filename', 'symbol'])
 class Symbol:
     def __init__(self, name: str):
         self.name = name
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         raise NotImplementedError()
     def data(self) -> str:
         raise NotImplementedError()
 
 
 class ReadelfSymbol(Symbol):
-    def __init__(self, num, value, size, type, bind, vis, ndx, name):
+    def __init__(self, num, value, size, type_, bind, vis, ndx, name):
         super().__init__(name)
         self.num = num
         self.value = value
         self.size = size
-        self.type = type
+        self.type = type_
         self.bind = bind
         self.vis = vis
         self.ndx = ndx
@@ -51,10 +76,13 @@ class ReadelfSymbol(Symbol):
     def data(self) -> str:
         return f'size={self.size}'
 
-    def __eq__(self, other):
-        return self.name == other.name and self.size == other.size
+    def __eq__(self, other: object) -> bool:
+        return (isinstance(other, ReadelfSymbol)
+        and self.name == other.name
+        and self.size == other.size
+    )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self.name}:: {self.size}'
 
 
@@ -70,10 +98,13 @@ class DumpbinSymbol(Symbol):
         h = m.hexdigest()
         return f'asm hash={h}'
 
-    def __eq__(self, other):
-        return self.name == other.name and self.asm == other.asm
+    def __eq__(self, other: object) -> bool:
+        return (isinstance(other, DumpbinSymbol)
+            and self.name == other.name
+            and self.asm == other.asm
+        )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self.name}:: {self.asm}'
 
 
@@ -81,7 +112,7 @@ class FileData:
     def __init__(self, filename: str, symbols: Sequence[Symbol]):
         self.filename = filename
         self.symbols = symbols
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self.filename}:: {self.symbols}'
 
 
@@ -89,7 +120,7 @@ class Collision:
     def __init__(self, funcname: str, entries: Sequence[SymbolInFile]):
         self.funcname = funcname
         self.entries = entries
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self.funcname}:: {self.entries}'
 
 
@@ -97,7 +128,7 @@ def main() -> None:
     args = parse_args()
     input_files = filter_input(args.inputfiles)
     symbols = [read_symbols(f) for f in input_files]
-    collisions = find_collisions(symbols)
+    collisions = find_collisions(symbols, args.ignore)
     if collisions:
         print('ODR violations found:')
         for c in collisions:
@@ -176,10 +207,12 @@ def read_symbols_dumpbin(filename: str) -> FileData:
     return FileData(filename, symbols)
 
 
-def find_collisions(filesdata: List[FileData]) -> List[Collision]:
+def find_collisions(filesdata: List[FileData], ignores: List[IgnorePair]) -> List[Collision]:
     known_definitions: Dict[str, List[SymbolInFile]] = dict()
     for fd in filesdata:
         for s in fd.symbols:
+            if any(i.matches(s.name, fd.filename) for i in ignores):
+                continue
             if s.name not in known_definitions:
                 known_definitions[s.name] = []
             known_definitions[s.name].append(SymbolInFile(fd.filename, s))
