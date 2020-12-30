@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import hashlib
+import json
+import os
 import re
 import subprocess
+import time
 
 from sys import platform
 from collections import namedtuple
@@ -13,6 +16,10 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument('inputfiles', nargs='+')
     p.add_argument('-Werror', action='store_true')
+    p.add_argument('--output-json')
+    p.add_argument('--output-root', default='odrey')
+    p.add_argument('--target')
+    p.add_argument('--silent', action='store_true')
     p.add_argument('--ignore', action='append', default=[],
         nargs=2, metavar=('symbol', 'file'),
         help='specify pair of <symbol> <file> regexes to ignore when calculating collisions,'
@@ -117,8 +124,9 @@ class FileData:
 
 
 class Collision:
-    def __init__(self, funcname: str, entries: Sequence[SymbolInFile]):
+    def __init__(self, funcname: str, demangled: Optional[str], entries: Sequence[SymbolInFile]):
         self.funcname = funcname
+        self.demangled = demangled
         self.entries = entries
     def __repr__(self) -> str:
         return f'{self.funcname}:: {self.entries}'
@@ -130,9 +138,13 @@ def main() -> None:
     symbols = [read_symbols(f) for f in input_files]
     collisions = find_collisions(symbols, args.ignore)
     if collisions:
-        print('ODR violations found:')
-        for c in collisions:
-            print(collision_to_str(c))
+        print('ODR violations found' + ('' if args.silent else ':'))
+        if not args.silent:
+            for c in collisions:
+                print(collision_to_str(c))
+        if args.output_json:
+            jfile = compose_output_filename(args.output_root, args.output_json)
+            write_collisions_to_json(collisions, jfile, args.target)
         if args.Werror:
             exit(1)
 
@@ -153,7 +165,7 @@ def read_symbols(filename: str) -> FileData:
 
 
 def read_symbols_readelf(filename: str) -> FileData:
-    elf_full = subprocess.check_output(f'readelf -Ws {filename} | c++filt', shell=True).decode()
+    elf_full = subprocess.check_output(f'readelf -Ws {filename}', shell=True).decode()
     elf = elf_full.splitlines()
     symbols = []
     for line in elf:
@@ -162,9 +174,8 @@ def read_symbols_readelf(filename: str) -> FileData:
             symbols.append(ReadelfSymbol(*(m.groups())))
     symbols = [x for x in symbols if is_interesting_elf_symbol(x)]
     if not symbols:
-        print(f'ODR: ERROR: cannot parse any symbols from `readelf -Ws {filename}` call.')
+        print(f'ODR: WARNING: cannot parse any symbols from `readelf -Ws {filename}` call.')
         print(f'     output was:\n{elf_full}')
-        raise RuntimeError('No symbols acquired from readelf')
     return FileData(filename, symbols)
 
 
@@ -220,14 +231,47 @@ def find_collisions(filesdata: List[FileData], ignores: List[IgnorePair]) -> Lis
     for funcname, filesymbols in known_definitions.items():
         uniq = filesymbols[0].symbol
         if any(fs.symbol != uniq for fs in filesymbols):
-            collisions.append(Collision(funcname, filesymbols))
+            #TODO: something else than subprocess
+            if platform.startswith('linux'):
+                demangled = subprocess.check_output(['c++filt', funcname]).decode().strip()
+            else:
+                demangled = None
+            collisions.append(Collision(funcname, demangled, filesymbols))
     return collisions
 
 
 def collision_to_str(c: Collision) -> str:
     size_strings = [f'  in file {f}: {s.data()}' for f,s in c.entries]
+    dmg = f'(aka {c.demangled})\n' if c.demangled else ''
     ss = '\n'.join(size_strings)
-    return f'multiple definitions of {c.funcname}:\n{ss}'
+    return f'multiple definitions of {c.funcname}:\n{dmg}{ss}'
+
+
+def compose_output_filename(odrey_root: str, filename: str) -> str:
+    if platform == 'win32' and len(filename)>3 and filename[1]==':' and filename[2] in ('/', '\\'):
+        filename = filename[3:]
+    elif filename.startswith('/'):
+        filename = filename[1:]
+    return os.path.join(odrey_root, filename)
+
+
+def write_collisions_to_json(collisions: Sequence[Collision], json_filename: str, target: str) -> None:
+    dirs, _ = os.path.split(json_filename)
+    os.makedirs(dirs, exist_ok=True)
+    collisions_jsonlist = []
+    for c in collisions:
+        funcname = c.funcname
+        entries_jsonlist = []
+        out = "ODR: multiple definitions of %s:\n" % funcname
+        for filename, symbol in c.entries:
+            e = dict(filename=filename, data=symbol.data())
+            entries_jsonlist.append(e)
+        j = dict(name=funcname, entries=entries_jsonlist)
+        collisions_jsonlist.append(j)
+    out_json = dict(target=target, collisions=collisions_jsonlist, timestamp_seconds=int(time.time()))
+    with open(json_filename, 'w') as f:
+        json.dump(out_json, f, indent=4)
+
 
 
 if __name__ == "__main__":
