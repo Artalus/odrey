@@ -36,7 +36,7 @@ class IgnorePair:
             parser.error(f'Bad "file" ignore regex: {e}')
 
     def matches(self, symbol: str, file: str) -> bool:
-        return self.symbol.search(symbol) and self.symbol.search(file)
+        return self.symbol.search(symbol) and self.file.search(file)
 
 
 SYMBOL_ELF_RE = re.compile(
@@ -48,6 +48,13 @@ ASM_FUNC_HEADER_RE = re.compile(r'^\?(.+@@.+:)$')
 #                            offset       instructions             cmd
 #                            1            2                        3
 ASM_LINE_RE = re.compile(r'^\s*([\dA-E]+):((?: [\dA-E][\dA-E])+)\s+(.+)$')
+
+# https://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangle.abi-tag
+ELF_GNUABI_RE = re.compile(r'^_ZN?K?9__gnu_cxx')
+# https://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangling-compression
+ELF_STD_RE = re.compile(r'^_ZN?K?S[tabsiod]')
+# https://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangling-special
+ELF_VIRTUAL_THUNK_RE = re.compile(r'^_ZT[VTIShvc]')
 
 
 SymbolInFile = namedtuple('SymbolInFile', ['filename', 'symbol'])
@@ -160,20 +167,27 @@ def read_symbols_readelf(filename: str) -> FileData:
         m = re.match(SYMBOL_ELF_RE, line)
         if m:
             symbols.append(ReadelfSymbol(*(m.groups())))
-    symbols = [x for x in symbols if is_interesting_elf_symbol(x)]
     if not symbols:
         print(f'ODR: ERROR: cannot parse any symbols from `readelf -Ws {filename}` call.')
         print(f'     output was:\n{elf_full}')
-        raise RuntimeError('No symbols acquired from readelf')
+    symbols = [x for x in symbols if is_interesting_elf_symbol(x)]
     return FileData(filename, symbols)
 
 
 def is_interesting_elf_symbol(s: ReadelfSymbol) -> bool:
     if s.type not in ['FUNC', 'OBJECT']:
         return False
+    # symbol is mentioned but undefined and it is up to linker to find its
+    # actual address
+    if s.ndx == 'UND':
+        return False
     # static functions, anonymous namespace, etc. - everything that can safely
     # differ, because it is not being exported
     if s.bind == 'LOCAL':
+        return False
+    # abi intestines, some of std symbols, RTTI and virtual tables seemingly
+    # may differ between translation units
+    if any(r.search(s.name) for r in (ELF_GNUABI_RE, ELF_STD_RE, ELF_VIRTUAL_THUNK_RE)):
         return False
     return True
 
