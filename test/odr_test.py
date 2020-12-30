@@ -46,6 +46,9 @@ def test_simple(clean_cmake):
     )
 
 
+# TODO: tests for --ignore flag
+
+
 # TODO: should be detectable, but requires something other than
 # dumpbin /disasm
 @pytest.mark.xfail(sys.platform.startswith('win32'),
